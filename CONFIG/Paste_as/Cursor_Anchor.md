@@ -25,11 +25,9 @@ share.mode: pull
 * [ ] [[simpler🟣5|simpler🟣]]~5~ ➡️ ${forthRef("simpler")}${backrefStat("simpler")}
 
 
-
 [[lkasdf➡️|🔙]]${backRefs("lkasdf")}
 [[lkasdf🔙1|➡️]]${forthRef("lkasdf",1)}
 [[lkasdf🔙2|➡️]]${forthRef("lkasdf",2)}
-
 
 ```space-lua
 function getSelectedText()
