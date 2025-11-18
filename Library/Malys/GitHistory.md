@@ -10,7 +10,7 @@ share.mode: pull
 ---
 # Git History Module
 
-
+${editor.navigate("git:Library/Malys/GitHistory_ad4225b")}
 
 ## 🎯 Description
 
