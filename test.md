@@ -1,4 +1,20 @@
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 some random text then suddenly insert a [[your label 1🔵|]]${backrefStat("your label 1")}*~Σ~* 🔙 ${backRefs("your label 1")} keep input any random words
 
 lkasdflksdajflkj [[your label 1🟣|]]==1== ➡️ ${forthRef("your label 1")}${backrefStat("your label 1")}*~Σ~* asdlkfsadlkfsadjkf
