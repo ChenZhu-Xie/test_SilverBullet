@@ -10,8 +10,6 @@ share.mode: pull
 ---
 # Git History Module
 
-${editor.navigate("git status")}
-
 ## 🎯 Description
 
 This module adds full **Git integration** into SilverBullet / Space-Lua.
