@@ -10,6 +10,8 @@ share.mode: pull
 ---
 # Git History Module
 
+
+
 ## 🎯 Description
 
 This module adds full **Git integration** into SilverBullet / Space-Lua.
