@@ -18,9 +18,6 @@ command.define {
 
 command.update {
   name = "Outline: Move Up",
-  run = function()
-    editor.moveLineUp()
-  end,
   key = "Shift-Alt-ArrowUp",
   mac = "Shift-Alt-ArrowUp",
   priority = 1,
