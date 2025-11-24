@@ -3,7 +3,7 @@ name: CONFIG/Paste_as/Cursor_Anchor
 tags: meta/library
 pageDecoration.prefix: "📎 "
 share.uri: "https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/CONFIG/Paste_as/Cursor_Anchor.md"
-share.hash: 827e2e25
+share.hash: 3b624843
 share.mode: pull
 ---
 #forward #object
@@ -12,13 +12,605 @@ share.mode: pull
 
 ## here we go
 
+### filterBox 5.2
+
+|     ​    | , (<) | . (>) |
+|----------|----------|----------|
+| Ctrl- | `[[prompt|(select)C]]` L| `[[picker|(select)C]]` L|
+| Ctrl-Alt- | `[[pickerC|(select)]]` L(A) | `[[picker|(paste)C]]` No Clip|
+| Ctrl-Shift- | `[[select (or prompt)|C]]` L| `[[paste (or picker)|(select)C]]` L|
+| Alt- | GOTO Flabel | GOTO Blabel |
+| Alt-M | Cursor: Copy Nearest Label |
+
+[[aslkjwer⚓|🔙]]${backRefs("aslkjwer")} | [[aslkjwer⚓|🧑‍🤝‍🧑1]]${forthRef("aslkjwer")}${backRefs_noSelf("aslkjwer",1)} | [[aslkjwer⚓|🧑‍🤝‍🧑2]]${forthRef("aslkjwer")}${backRefs_noSelf("aslkjwer",2)} | [[aslkjwer⚓|🧑‍🤝‍🧑3]]${forthRef("aslkjwer")}${backRefs_noSelf("aslkjwer",3)}
+
+[[test⚓|qwer🔙]]${backRefs("test")} | [[test⚓|emm🧑‍🤝‍🧑1]]${forthRef("test")}${backRefs_noSelf("test",1)} | [[test⚓|haha🧑‍🤝‍🧑2]]${forthRef("test")}${backRefs_noSelf("test",2)}
+
+
+lkasdf
+
+
+1. [Tag Page](https://silverbullet.md/Library/Std/Infrastructure/Tag%20Page) #silverbullet
+
+```space-lua
+function getSelectedText()
+  local sel = editor.getSelection()
+  if not sel or sel.from == sel.to then return nil end
+  local text = editor.getText()
+  return text:sub(sel.from + 1, sel.to)
+end
+
+function setSelectedText(newText)
+  local sel = editor.getSelection()
+  if not sel or sel.from == sel.to then return nil end
+  editor.replaceRange(sel.from, sel.to, newText)
+end
+
+function usrPrompt(hinText, iniText)
+  local iniText = iniText or ""
+  local input = editor.prompt(hinText, iniText)
+  if not input then
+    editor.flashNotification("Cancelled", "warn")
+  end
+  return input
+end
+
+function pickerBox_labelName(hinText, iniText)
+  local iniText = iniText or ""
+  local allLabels = query[[
+    from index.tag "link"
+    where toPage and toPage:find(anchorSymbol, 1, true) and alias:find(suffixBlabel, 1, true)
+    order by _.toPage
+  ]]
+  local labels = query[[from allLabels select {name = _.toPage:gsub(anchorSymbol, ""), description = _.page .. "@" .. _.pos}]]
+  local sel = editor.filterBox("Label Search", labels, hinText, iniText)
+  if sel then return sel.name end
+  if not sel then
+    editor.flashNotification("Cancelled", "warn")
+  end
+  return nil
+end
+
+function pickerBox_FlabelRef(hinText, iniText)
+  local iniText = iniText or ""
+  local allFlabels = query[[
+    from index.tag "link"
+    where toPage and toPage:find(anchorSymbol, 1, true) and alias:find(suffixBlabel, 1, true)
+    order by _.toPage
+  ]]
+  local Flabels = query[[from allFlabels select {name = _.toPage:gsub(anchorSymbol, "") .. suffixBlabel .. _.alias:gsub(suffixBlabel, ""), description = _.page .. "@" .. _.pos, Flabel = _.toPage:gsub(anchorSymbol, "")}]]
+  local sel = editor.filterBox("Flabel Search", Flabels, hinText, iniText)
+  if sel then return sel.description, sel.Flabel end
+  if not sel then
+    editor.flashNotification("Cancelled", "warn")
+  end
+  return nil, nil
+end
+
+function pickerBox_BlabelRef(hinText, iniText)
+  local iniText = iniText or ""
+  local allBlabels = query[[
+    from index.tag "link"
+    where toPage and toPage:find(anchorSymbol, 1, true) and alias:find(suffixFlabel, 1, true)
+    order by _.toPage .. alias
+  ]]
+  local Blabels = query[[from allBlabels select {name = _.toPage:gsub(anchorSymbol, "") .. siblings .. _.alias, description = _.page .. "@" .. _.pos, Flabel = _.toPage:gsub(anchorSymbol, "")}]]
+  local sel = editor.filterBox("Blabel Search", Blabels, hinText, iniText)
+  if sel then return sel.description, sel.Flabel end
+  if not sel then
+    editor.flashNotification("Cancelled", "warn")
+  end
+  return nil, nil
+end
+
+command.define {
+  name = "Go to: Forth Anchor",
+  key = "Alt-,",
+  run = function()
+    local FlabelRef, Flabel = pickerBox_FlabelRef('Select: Flabel (to GOTO)', js.window.navigator.clipboard.readText())
+    if not FlabelRef then return end
+    -- editor.flashNotification(FlabelRef)
+    editor.navigate(FlabelRef)
+    local pos = tonumber(FlabelRef:match("@(.*)$"))
+    if pos then
+        editor.moveCursor(pos, true)
+    end
+    editor.copyToClipboard(Flabel)
+  end
+}
+
+command.define {
+  name = "Go to: Back Anchor",
+  key = "Alt-.",
+  run = function()
+    local BlabelRef, Flabel = pickerBox_BlabelRef('GOTO: Blabel', js.window.navigator.clipboard.readText())
+    if not BlabelRef then return end
+    -- editor.flashNotification(BlabelRef)
+    editor.navigate(BlabelRef)
+    local pos = tonumber(BlabelRef:match("@(.*)$"))
+    if pos then
+        editor.moveCursor(pos, true)
+    end
+    editor.copyToClipboard(Flabel)
+  end
+}
+
+local anchorSymbol = "⚓"
+local suffixFlabel = "🧑‍🤝‍🧑"
+local suffixBlabel = "🔙"
+local siblings = "➡️"
+
+-- =========== Forth Anchor + Back Refs ==================
+
+local function tableBack(Flabel)
+  local aspiringPage = Flabel .. anchorSymbol
+  return query[[
+    from index.tag "link"
+    where toPage == aspiringPage and alias:find(suffixFlabel, 1, true)
+    order by _.thBlabel
+    select {ref=_.ref, thBlabel=_.thBlabel}
+  ]]
+end
+
+function backRefs(Flabel)
+  local str = template.each(tableBack(Flabel), template.new[==[​[[${_.ref}|${_.thBlabel}]]​]==])
+  if #str == 0 then return "​" end
+  return str
+end
+
+command.define {
+  name = "Insert: ForthAnchor + BackRefs (sel: alias)",
+  key = "Ctrl-,",
+  run = function()
+    local alias = getSelectedText() or ""
+    local Flabel = usrPrompt('Enter: label (to be Referred)', '')
+    if not Flabel then return end
+    local aspiringPage = Flabel .. anchorSymbol
+    local forthAnchor = "[[" .. aspiringPage .. "||^|" .. suffixBlabel .. "]]"
+    local backRefs = '${backRefs("' .. Flabel .. '")}'
+    local fullText = forthAnchor .. backRefs
+    if alias and alias ~= "" then setSelectedText("") end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    editor.copyToClipboard(Flabel)
+    editor.insertAtCursor(alias, false) -- scrollIntoView?
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+command.define {
+  name = "Insert: ForthAnchor + BackRefs (pick: label)",
+  key = "Ctrl-Alt-,",
+  run = function()
+    local alias = getSelectedText() or ""
+    local Flabel = pickerBox_labelName('Enter: label (to be Referred)', js.window.navigator.clipboard.readText())
+    if not Flabel then return end
+    local forthAnchor = "[[" .. Flabel .. "|^|" .. anchorSymbol .. "|" .. alias .. suffixBlabel .. "]]"
+    local backRefs = '${backRefs("' .. Flabel .. '")}'
+    local fullText = forthAnchor .. backRefs
+    editor.copyToClipboard(Flabel)
+    if alias and alias ~= "" then
+      setSelectedText("")
+      editor.copyToClipboard(alias)
+    end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    -- editor.insertAtCursor(alias, false) -- scrollIntoView?
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+command.define {
+  name = "Insert: ForthAnchor + BackRefs (sel: label)",
+  key = "Ctrl-Shift-,",
+  run = function()
+    local iniText = getSelectedText() or ""
+    local Flabel
+    if iniText and iniText ~= "" then
+      Flabel = iniText
+    else
+      Flabel = usrPrompt('Enter: label (to be Referred)', '')
+    end
+    if not Flabel then return end
+    local aspiringPage = Flabel .. anchorSymbol
+    local forthAnchor = "[[" .. aspiringPage .. "||^|" .. suffixBlabel .. "]]"
+    local backRefs = '${backRefs("' .. Flabel .. '")}'
+    local fullText = forthAnchor .. backRefs
+    if iniText and iniText ~= "" then setSelectedText("") end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    editor.copyToClipboard(Flabel)
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+-- =========== Back Anchor + Forth Ref ==================
+
+local function tableBack_noSelf(Flabel, thBlabelNum)
+  local aspiringPage = Flabel .. anchorSymbol
+  return query[[
+    from index.tag "link"
+    where toPage == aspiringPage and alias:find(suffixFlabel, 1, true) and thBlabelNum ~= _.thBlabel
+    order by _.thBlabel
+    select {ref=_.ref, thBlabel=_.thBlabel}
+  ]]
+end
+
+function backRefs_noSelf(Flabel, thBlabelNum)
+  local str = template.each(tableBack_noSelf(Flabel, thBlabelNum), template.new[==[​[[${_.ref}|${_.thBlabel}]]​]==])
+  if #str == 0 then return "​" end
+  return str
+end
+
+local function tableForth(Flabel)
+  local aspiringPage = Flabel .. anchorSymbol
+  return query[[
+    from index.tag "link"
+    where toPage == aspiringPage and alias:find(suffixBlabel, 1, true)
+    select {ref=_.ref}
+  ]]
+end
+
+function forthRef(Flabel)
+  local str = template.each(tableForth(Flabel), template.new("[[${_.ref}|​" .. siblings .. "​]]"))
+  if #str == 0 then return "​" end
+  return str
+end
+
+command.define {
+  name = "Insert: BackAnchor + ForthRef (label: pick)",
+  key = "Ctrl-.",
+  run = function()
+    local alias = getSelectedText() or ""
+    local Flabel = pickerBox_labelName('Jump to: label', js.window.navigator.clipboard.readText())
+    if not Flabel then return end
+    local thBlabelNum = #tableBack(Flabel) + 1
+    local aspiringPage = Flabel .. anchorSymbol
+    local backAnchor = "[[" .. aspiringPage .. "||^|" .. suffixFlabel .. thBlabelNum .. "]]"
+    local forthRef = '${forthRef("' .. Flabel .. '")}'
+    local backRefs_noSelf = '${backRefs_noSelf("' .. Flabel .. '",' .. thBlabelNum .. ')}'
+    local fullText = backAnchor .. forthRef .. backRefs_noSelf
+    if alias and alias ~= "" then setSelectedText("") end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    editor.copyToClipboard(Flabel)
+    editor.insertAtCursor(alias, false) -- scrollIntoView?
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+command.define {
+  name = "Insert: BackAnchor + ForthRef (alias: paste)",
+  key = "Ctrl-Alt-.",
+  run = function()
+    local iniText = getSelectedText() or ""
+    local alias = js.window.navigator.clipboard.readText()
+    local Flabel = pickerBox_labelName('Jump to: label', iniText)
+    if not Flabel then return end
+    local thBlabelNum = #tableBack(Flabel) + 1
+    local aspiringPage = Flabel .. anchorSymbol
+    local backAnchor = "[[" .. aspiringPage .. "||^|" .. suffixFlabel .. thBlabelNum .. "]]"
+    local forthRef = '${forthRef("' .. Flabel .. '")}'
+    local backRefs_noSelf = '${backRefs_noSelf("' .. Flabel .. '",' .. thBlabelNum .. ')}'
+    local fullText = backAnchor .. forthRef .. backRefs_noSelf
+    if iniText and iniText ~= "" then setSelectedText("") end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    -- editor.copyToClipboard(Flabel)
+    editor.insertAtCursor(alias, false) -- scrollIntoView?
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+command.define {
+  name = "Insert: BackAnchor + ForthRef (label: paste)",
+  key = "Ctrl-Shift-.",
+  run = function()
+    local alias = getSelectedText() or ""
+    local iniText = js.window.navigator.clipboard.readText()
+    local Flabel
+    if iniText and iniText ~= "" then
+      Flabel = iniText
+    else
+      Flabel = pickerBox_labelName('Jump to: label', '')
+    end
+    if not Flabel then return end
+    local thBlabelNum = #tableBack(Flabel) + 1
+    local aspiringPage = Flabel .. anchorSymbol
+    local backAnchor = "[[" .. aspiringPage .. "||^|" .. suffixFlabel .. thBlabelNum .. "]]"
+    local forthRef = '${forthRef("' .. Flabel .. '")}'
+    local backRefs_noSelf = '${backRefs_noSelf("' .. Flabel .. '",' .. thBlabelNum .. ')}'
+    local fullText = backAnchor .. forthRef .. backRefs_noSelf
+    if alias and alias ~= "" then setSelectedText("") end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    editor.copyToClipboard(Flabel)
+    editor.insertAtCursor(alias, false) -- scrollIntoView?
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+index.defineTag {
+  name = "link",
+  metatable = {
+    __index = function(self, attr)
+      if attr == "thBlabel" then
+        return tonumber(string.match(self.alias, suffixFlabel .. "([0-9]+)"))
+      end
+    end
+  }
+}
+
+-- =========== Magneto Copy: Nearest Label ==================
+
+function SelectiondistanceToCursor(startPos, endPos, cursorPos)
+  if cursorPos < startPos then return startPos - cursorPos end
+  if cursorPos > endPos   then return cursorPos - endPos   end
+  return 0
+end
+
+function getCursorPos()
+  local cur = editor.getCursor() 
+  local cursor_pos = (type(cur) == "table" and cur.pos) or cur
+  return cursor_pos
+end
+
+function findNearestLabel()
+  local pageText = editor.getText()
+  local curPos = getCursorPos()
+
+  local pattern = "%[%[[^\n%]]+" .. anchorSymbol .. "|"
+  local nearest = nil
+
+  local init = 1
+  local ok, err = pcall(function()
+    while true do
+      local s, e = pageText:find(pattern, init)
+      if not s then break end
+      
+      local dist = SelectiondistanceToCursor(s, e, curPos)
+      if not nearest or dist < nearest.dist then
+        nearest = { start = s, stop = e, text = pageText:sub(s, e), dist = dist }
+      end
+      
+      init = (e >= init) and (e + 1) or (init + 1)
+    end
+  end)
+
+  return nearest
+end
+
+command.define{
+  name = "Cursor: Copy Nearest Label",
+  description = "Copy the raw page name of the nearest Wiki Link",
+  key = "Alt-m",
+  run = function()
+    local match = findNearestLabel()
+    
+    if not match then
+      editor.flashNotification("No Label found.")
+      return
+    end
+
+    local inner = match.text:sub(3, -3)
+    editor.copyToClipboard(inner)
+    editor.flashNotification(inner .. anchorSymbol)
+  end
+}
+```
+
+### Less Index Overhead 4.2
+
+==Update==
+1. no text display if no forward-label/backrefs/siblings found 
+2. switch emoji 🧑‍🤝‍🧑,➡️
+3. add auto reindex `alt+q` (refresh widgets)
+4. 4 commands for different input
+ - Ctrl-<>       for manual input
+ - Ctrl-Shift-<> for quick  input
+
+|     ​    | Ctrl- | Ctrl-Shift- |
+|----------|----------|----------|
+| , (<) | `[[prompt|(select)C]]`, copy:L | `[[select (or prompt)|C]]`, copy:L |
+| . (>) | `[[prompt|(select)C]]`, copy:L | `[[paste (or prompt)|(select)C]]`, copy:L |
+
+${query[[
+    from index.tag "link"
+    where toPage and toPage:find("⚓", 1, true) and alias:find("🔙", 1, true)
+    order by _.ref
+  ]]}
+
+```lua
+function getSelectedText()
+  local sel = editor.getSelection()
+  if not sel or sel.from == sel.to then return nil end
+  local text = editor.getText()
+  return text:sub(sel.from + 1, sel.to)
+end
+
+function setSelectedText(newText)
+  local sel = editor.getSelection()
+  if not sel or sel.from == sel.to then return nil end
+  editor.replaceRange(sel.from, sel.to, newText)
+end
+
+function usrPrompt(hinText, iniText)
+  local iniText = iniText or ""
+  local input = editor.prompt(hinText, iniText)
+  if not input then
+    editor.flashNotification("Cancelled", "warn")
+  end
+  return input
+end
+
+local anchorSymbol = "⚓"
+local suffixFlabel = "🧑‍🤝‍🧑"
+local suffixBlabel = "🔙"
+local siblings = "➡️"
+
+-- =========== Forth Anchor + Back Refs ==================
+
+local function tableBack(Flabel)
+  local aspiringPage = Flabel .. anchorSymbol
+  return query[[
+    from index.tag "link"
+    where toPage == aspiringPage and alias:find(suffixFlabel, 1, true)
+    order by _.thBlabel
+    select {ref=_.ref, thBlabel=_.thBlabel}
+  ]]
+end
+
+function backRefs(Flabel)
+  local str = template.each(tableBack(Flabel), template.new[==[​[[${_.ref}|${_.thBlabel}]]​]==])
+  if #str == 0 then return "​" end
+  return str
+end
+
+command.define {
+  name = "Insert: ForthAnchor + BackRefs (sel: label)",
+  key = "Ctrl-Shift-,",
+  run = function()
+    local iniText = getSelectedText() or ""
+    local Flabel
+    if iniText and iniText ~= "" then
+      Flabel = iniText
+    else
+      Flabel = usrPrompt('Enter: label (to be Referred)', '')
+    end
+    if not Flabel then return end
+    local aspiringPage = Flabel .. anchorSymbol
+    local forthAnchor = "[[" .. aspiringPage .. "||^|" .. suffixBlabel .. "]]"
+    local backRefs = '${backRefs("' .. Flabel .. '")}'
+    local fullText = forthAnchor .. backRefs
+    if iniText and iniText ~= "" then setSelectedText("") end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    editor.copyToClipboard(Flabel)
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+command.define {
+  name = "Insert: ForthAnchor + BackRefs (sel: alias)",
+  key = "Ctrl-,",
+  run = function()
+    local alias = getSelectedText() or ""
+    local Flabel = usrPrompt('Enter: label (to be Referred)', '')
+    if not Flabel then return end
+    local aspiringPage = Flabel .. anchorSymbol
+    local forthAnchor = "[[" .. aspiringPage .. "||^|" .. suffixBlabel .. "]]"
+    local backRefs = '${backRefs("' .. Flabel .. '")}'
+    local fullText = forthAnchor .. backRefs
+    if alias and alias ~= "" then setSelectedText("") end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    editor.copyToClipboard(Flabel)
+    editor.insertAtCursor(alias, false) -- scrollIntoView?
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+-- =========== Back Anchor + Forth Ref ==================
+
+local function tableBack_noSelf(Flabel, thBlabelNum)
+  local aspiringPage = Flabel .. anchorSymbol
+  return query[[
+    from index.tag "link"
+    where toPage == aspiringPage and alias:find(suffixFlabel, 1, true) and thBlabelNum ~= _.thBlabel
+    order by _.thBlabel
+    select {ref=_.ref, thBlabel=_.thBlabel}
+  ]]
+end
+
+function backRefs_noSelf(Flabel, thBlabelNum)
+  local str = template.each(tableBack_noSelf(Flabel, thBlabelNum), template.new[==[​[[${_.ref}|${_.thBlabel}]]​]==])
+  if #str == 0 then return "​" end
+  return str
+end
+
+local function tableForth(Flabel)
+  local aspiringPage = Flabel .. anchorSymbol
+  return query[[
+    from index.tag "link"
+    where toPage == aspiringPage and alias:find(suffixBlabel, 1, true)
+    select {ref=_.ref}
+  ]]
+end
+
+function forthRef(Flabel)
+  local str = template.each(tableForth(Flabel), template.new("[[${_.ref}|​" .. siblings .. "​]]"))
+  if #str == 0 then return "​" end
+  return str
+end
+
+command.define {
+  name = "Insert: BackAnchor + ForthRef (label: input)",
+  key = "Ctrl-.",
+  run = function()
+    local alias = getSelectedText() or ""
+    local Flabel = usrPrompt('Jump to: label', '')
+    if not Flabel then return end
+    local thBlabelNum = #tableBack(Flabel) + 1
+    local aspiringPage = Flabel .. anchorSymbol
+    local backAnchor = "[[" .. aspiringPage .. "||^|" .. suffixFlabel .. thBlabelNum .. "]]"
+    local forthRef = '${forthRef("' .. Flabel .. '")}'
+    local backRefs_noSelf = '${backRefs_noSelf("' .. Flabel .. '",' .. thBlabelNum .. ')}'
+    local fullText = backAnchor .. forthRef .. backRefs_noSelf
+    if alias and alias ~= "" then setSelectedText("") end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    editor.copyToClipboard(Flabel)
+    editor.insertAtCursor(alias, false) -- scrollIntoView?
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+command.define {
+  name = "Insert: BackAnchor + ForthRef (label: clip)",
+  key = "Ctrl-Shift-.",
+  run = function()
+    local alias = getSelectedText() or ""
+    local iniText = js.window.navigator.clipboard.readText()
+    local Flabel
+    if iniText and iniText ~= "" then
+      Flabel = iniText
+    else
+      Flabel = usrPrompt('Jump to: label', '')
+    end
+    if not Flabel then return end
+    local thBlabelNum = #tableBack(Flabel) + 1
+    local aspiringPage = Flabel .. anchorSymbol
+    local backAnchor = "[[" .. aspiringPage .. "||^|" .. suffixFlabel .. thBlabelNum .. "]]"
+    local forthRef = '${forthRef("' .. Flabel .. '")}'
+    local backRefs_noSelf = '${backRefs_noSelf("' .. Flabel .. '",' .. thBlabelNum .. ')}'
+    local fullText = backAnchor .. forthRef .. backRefs_noSelf
+    if alias and alias ~= "" then setSelectedText("") end
+    editor.insertAtPos(fullText, editor.getCursor(), true)
+    editor.copyToClipboard(Flabel)
+    editor.insertAtCursor(alias, false) -- scrollIntoView?
+    editor.invokeCommand("Widgets: Refresh All")
+  end
+}
+
+index.defineTag {
+  name = "link",
+  metatable = {
+    __index = function(self, attr)
+      if attr == "thBlabel" then
+        return tonumber(string.match(self.alias, suffixFlabel .. "([0-9]+)"))
+      end
+    end
+  }
+}
+```
+
 ### backup 3.2
 
 [[oiuweqr➡️|🔙]]${backRefs("oiuweqr")}
 [[oiuweqr🔙1|➡️]]${forthRef("oiuweqr",1)}🧑‍🤝‍🧑${backRefs_noSelf("oiuweqr",1)}
 [[oiuweqr🔙2|➡️]]${forthRef("oiuweqr",2)}🧑‍🤝‍🧑${backRefs_noSelf("oiuweqr",2)}
 
-```space-lua
+${query[[
+    from index.tag "link"
+    where toPage and toPage:find("oiuweqr➡️", 1, true)
+  ]]}
+${query[[
+    from index.tag "aspiring-page"
+    where name and name:find("oiuweqr➡️", 1, true)
+  ]]}
+
+```lua
 function getSelectedText()
   local sel = editor.getSelection()
   if not sel or sel.from == sel.to then return nil end
@@ -64,7 +656,7 @@ function backRefs(Flabel)
 end
 
 command.define {
-  name = "insert: Forthanchor + Backrefs",
+  name = "Insert: ForthAnchor + BackRefs",
   key = "Ctrl-,",
   run = function()
     local iniText = getSelectedText()
@@ -122,7 +714,7 @@ function forthRef(Flabel, thBlabelNum)
 end
 
 command.define {
-  name = "insert: Backanchor + Forthref",
+  name = "Insert: BackAnchor + ForthRef",
   key = "Ctrl-.",
   run = function()
     local alias = getSelectedText()
@@ -214,7 +806,7 @@ function backRefs(Flabel)
 end
 
 command.define {
-  name = "insert: Forthanchor + Backrefs",
+  name = "Insert: ForthAnchor + BackRefs",
   key = "Ctrl-,",
   run = function()
     local iniText = getSelectedText()
@@ -227,7 +819,7 @@ command.define {
     end
     if not Flabel then return end
     local aspiringPageForth = Flabel .. suffixFlabel
-    local forthAnchor = "[[" .. aspiringPageForth .. "|" .. suffixBlabel .. "|^|]]"
+    local forthAnchor = "[[" .. aspiringPageForth .. "||^|" .. suffixBlabel .. "]]"
     local backRefs = '${backRefs("' .. Flabel .. '")}'
     local fullText = forthAnchor .. backRefs
     if iniText and iniText ~= "" then
@@ -256,7 +848,7 @@ function forthRef(Flabel, thBlabelNum)
 end
 
 command.define {
-  name = "insert: Backanchor + Forthref",
+  name = "Insert: BackAnchor + ForthRef",
   key = "Ctrl-.",
   run = function()
     local alias = getSelectedText()
@@ -353,7 +945,7 @@ function backRefs(Flabel)
 end
 
 command.define {
-  name = "insert: Forthanchor + Backrefs",
+  name = "Insert: ForthAnchor + BackRefs",
   key = "Ctrl-,",
   run = function()
     local iniText = getSelectedText()
@@ -366,7 +958,7 @@ command.define {
     end
     if not Flabel then return end
     local aspiringPageForth = Flabel .. suffixFlabel
-    local forthAnchor = "[[" .. aspiringPageForth .. "|" .. suffixFlabel .. "|^|]]"
+    local forthAnchor = "[[" .. aspiringPageForth .. "||^|" .. suffixFlabel .. "]]"
     local backrefStat = '${backrefStat("' .. Flabel .. '")}'
     local backRefs = '${backRefs("' .. Flabel .. '")}'
     local fullText = forthAnchor .. backrefStat .. B .. backRefs
@@ -396,7 +988,7 @@ function forthRef(Flabel, thBlabelNum)
 end
 
 command.define {
-  name = "insert: Backanchor + Forthref",
+  name = "Insert: BackAnchor + ForthRef",
   key = "Ctrl-.",
   run = function()
     local alias = getSelectedText()
@@ -490,7 +1082,7 @@ function backRefs(Flabel)
 end
 
 command.define {
-  name = "insert: Forthanchor + Backrefs",
+  name = "Insert: ForthAnchor + BackRefs",
   key = "Ctrl-,",
   run = function()
     local iniText = getSelectedText()
@@ -503,7 +1095,7 @@ command.define {
     end
     if not Flabel then return end
     local aspiringPageForth = Flabel .. suffixFlabel
-    local forthAnchor = "[[" .. aspiringPageForth .. "|" .. suffixFlabel .. "|^|]]"
+    local forthAnchor = "[[" .. aspiringPageForth .. "||^|" .. suffixFlabel .. "]]"
     local backrefStat = '${backrefStat("' .. Flabel .. '")}'
     local backRefs = '${backRefs("' .. Flabel .. '")}'
     local fullText = forthAnchor .. backrefStat .. B .. backRefs
@@ -533,7 +1125,7 @@ function forthRef(Flabel)
 end
 
 command.define {
-  name = "insert: Backanchor + Forthref",
+  name = "Insert: BackAnchor + ForthRef",
   key = "Ctrl-.",
   run = function()
     local alias = getSelectedText()
@@ -638,7 +1230,7 @@ function backRefs(Flabel)
 end
 
 command.define {
-  name = "insert: Forthanchor + Backrefs",
+  name = "Insert: ForthAnchor + BackRefs",
   key = "Ctrl-,",
   run = function()
     local iniText = getSelectedText()
@@ -681,7 +1273,7 @@ function forthRef(Flabel)
 end
 
 command.define {
-  name = "insert: Backanchor + Forthref",
+  name = "Insert: BackAnchor + ForthRef",
   key = "Ctrl-.",
   run = function()
     local alias = getSelectedText()
