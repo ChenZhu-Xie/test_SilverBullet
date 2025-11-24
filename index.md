@@ -4,6 +4,8 @@ Welcome to the wondrous world of SilverBullet. A world that once you discover an
 
 _One of us!_
 
+[[aslkjwer⚓|🧑‍🤝‍🧑4]]${forthRef("aslkjwer")}${backRefs_noSelf("aslkjwer",4)}
+
 You can go ahead and dele
 te this placeholder content in a second, but before you do, let me quickly show you around.
 
