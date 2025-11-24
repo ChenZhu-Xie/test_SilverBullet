@@ -310,7 +310,6 @@ command.define {
       Flabel = pickerBox_labelName('Jump to: label', '')
     end
     if not Flabel then return end
-    local editor.flashNotification("asdfasdfasfd")
     local thBlabelNum = #tableBack(Flabel) + 1
     local aspiringPage = Flabel .. anchorSymbol
     local backAnchor = "[[" .. aspiringPage .. "||^|" .. suffixFlabel .. thBlabelNum .. "]]"
