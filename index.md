@@ -6,6 +6,8 @@ _One of us!_
 
 [[aslkjwer⚓|🧑‍🤝‍🧑4]]${forthRef("aslkjwer")}${backRefs_noSelf("aslkjwer",4)}
 
+- [[test⚓|🧑‍🤝‍🧑3]]${forthRef("test")}${backRefs_noSelf("test",3)}
+
 You can go ahead and dele
 te this placeholder content in a second, but before you do, let me quickly show you around.
 
