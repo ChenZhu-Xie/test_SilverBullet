@@ -22,33 +22,42 @@ test
 
 ```space-lua
 command.define {
-  name = "Navigate: File Link Picker",
-  key = "Alt-f",
+  name = "Navigate: Table Picker",
+  key = "Ctrl-Shift-t",
   priority = 1,
   run = function()
-    local FileLinks = getFileLinks()
-    if not FileLinks or #FileLinks == 0 then
-      editor.flashNotification("No File Links found.")
+    local tables = getTables()
+    if not tables or #tables == 0 then
+      editor.flashNotification("No tables found.")
       return
     end
-    
-    local sel = editor.filterBox("🔍 Select", FileLinks, "Choose a File Link...", "a File Link to GoTo")
+
+    local sel = editor.filterBox("Jump to", tables, "Select a Table...", "Page @ Pos where the Table locates")
     if not sel then return end
     editor.navigate(sel.ref)
     editor.invokeCommand("Navigate: Center Cursor")
   end
 }
 
-function getFileLinks()
-  return query[[
-    from index.tag "link"
-    where _.toFile
-    select{
-      name = _.snippet,
-      description = string.format("%s @ %d", _.page, _.pos),
-      ref = _.ref,
+function getTables()
+  local rows = query[[
+    from index.tag "table"
+    select {
+      name = string.format("%s @ %d", _.page, _.pos),
+      ref      = _.ref,
+      tableref = _.tableref,
     }
     order by _.page, _.pos
   ]]
+
+  local out, seen = {}, {}
+  for _, r in ipairs(rows) do
+    local key = r.tableref
+    if not seen[key] then
+      seen[key] = true
+      table.insert(out, r)
+    end
+  end
+  return out
 end
 ```
