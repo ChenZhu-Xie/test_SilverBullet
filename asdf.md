@@ -202,10 +202,9 @@ function widgets.breadcrumbs()
     display = "block",
   }
 end
-```
 
+-- ========================================================
 
-```space-lua
 -- priority: 20
 event.listen {
   name = "hooks:renderTopWidgets",
@@ -366,10 +365,9 @@ function widgets.breadcrumbs_B()
     display = "block",
   }
 end
-```
 
+-- ========================================================
 
-```space-lua
 -- priority: 20
 event.listen {
   name = "hooks:renderBottomWidgets",
