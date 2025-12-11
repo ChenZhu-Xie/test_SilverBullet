@@ -7,7 +7,20 @@ asdfsadfsadfasdfssadfasdfadfsdaf [[la2🟣|]]==1== ➡️ ${forthRef("la2")}${ba
 
 
 
-
+```space-lua
+-- priority: -1
+event.listen{
+  -- name = "hooks:renderTopWidgets",
+  name = "editor:pageLoaded",
+  run = function(e)
+    local mypage = editor.getCurrentPage()
+    local data = datastore.get({"Visitimes", mypage}) or {}
+    local value = data.value or 0
+    datastore.set({"Visitimes", mypage}, { value = value + 1 })
+    -- editor.flashNotification("Visitimes: " .. datastore.get({"Visitimes", mypage}).value)
+  end
+}
+```
 
 
 ```space-lua
