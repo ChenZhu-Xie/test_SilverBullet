@@ -1,0 +1,86 @@
+---
+author: Chenzhu-Xie
+name: Library/xczphysics/CONFIG/KeyBinding/Update
+tags: meta/library
+pageDecoration.prefix: "⌨️ "
+share.uri: "https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/CONFIG/KeyBinding/Update.md"
+share.hash: aa491b6b
+share.mode: pull
+---
+
+# Update Commonly used Commands
+
+1. https://community.silverbullet.md/t/either-key-bindings-or-plugs-in-config-not-working/3184
+2. https://community.silverbullet.md/t/capslock-shortcut-keys-containing-letter-fail/3194
+
+## Navigate
+
+### Home
+
+```space-lua
+command.update {
+  name = "Navigate: Home",
+  key = "",
+  mac = "",
+  -- key = "Ctrl-h",
+  -- mac = "Cmd-h",
+  priority = 1,
+}
+```
+
+### Page Picker
+
+```space-lua
+command.update {
+  name = "Navigate: Page Picker",
+  key = "Ctrl-k",
+  mac = "Cmd-k",
+  priority = 1,
+}
+```
+
+### Meta Picker
+
+```space-lua
+command.update {
+  name = "Navigate: Meta Picker",
+  key = "Ctrl-Alt-k",
+  mac = "Cmd-Alt-k",
+  priority = 1,
+}
+```
+
+### Center Cursor
+
+```space-lua
+command.update {
+  name = "Navigate: Center Cursor",
+  key = "Ctrl-l",
+  mac = "Cmd-l",
+  priority = 1,
+}
+```
+
+## Page
+
+### Delete
+
+```space-lua
+command.update {
+  name = "Page: Delete",
+  key = "Shift-Alt-d",
+  mac = "Shift-Alt-d",
+  priority = 1,
+}
+```  
+
+### Copy
+
+```space-lua
+command.update {
+  name = "Page: Copy",
+  key = "Ctrl-Alt-c",
+  mac = "Cmd-Alt-c",
+  priority = 1,
+}
+```
