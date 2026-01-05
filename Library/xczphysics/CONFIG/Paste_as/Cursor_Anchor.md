@@ -4,7 +4,7 @@ name: Library/xczphysics/CONFIG/Paste_as/Cursor_Anchor
 tags: meta/library
 pageDecoration.prefix: "📎 "
 share.uri: "https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/CONFIG/Paste_as/Cursor_Anchor.md"
-share.hash: 09592dab
+share.hash: 47ed4a51
 share.mode: pull
 ---
 #forward #object
@@ -65,7 +65,7 @@ function pickerBox_labelName(hinText, iniText)
     order by _.toPage
   ]]
   local labels = query[[from allLabels select {name = _.toPage:gsub(anchorSymbol, ""), description = _.page .. "@" .. _.pos}]]
-  local sel = editor.filterBox("Label Search", labels, hinText, iniText)
+  local sel = editor.filterBox("🔌 Insert", labels, hinText, iniText)
   if sel then return sel.name end
   if not sel then
     editor.flashNotification("Cancelled", "warn")
@@ -81,7 +81,7 @@ function pickerBox_FlabelRef(hinText, iniText)
     order by _.toPage
   ]]
   local Flabels = query[[from allFlabels select {name = _.toPage:gsub(anchorSymbol, "") .. suffixBlabel .. _.alias:gsub(suffixBlabel, ""), description = _.page .. "@" .. _.pos, Flabel = _.toPage:gsub(anchorSymbol, "")}]]
-  local sel = editor.filterBox("Flabel Search", Flabels, hinText, iniText)
+  local sel = editor.filterBox("🔎 Flabel", Flabels, hinText, iniText)
   if sel then return sel.description, sel.Flabel end
   if not sel then
     editor.flashNotification("Cancelled", "warn")
@@ -97,7 +97,7 @@ function pickerBox_BlabelRef(hinText, iniText)
     order by _.toPage .. alias
   ]]
   local Blabels = query[[from allBlabels select {name = _.toPage:gsub(anchorSymbol, "") .. siblings .. _.alias, description = _.page .. "@" .. _.pos, Flabel = _.toPage:gsub(anchorSymbol, "")}]]
-  local sel = editor.filterBox("Blabel Search", Blabels, hinText, iniText)
+  local sel = editor.filterBox("🔎 Blabel", Blabels, hinText, iniText)
   if sel then return sel.description, sel.Flabel end
   if not sel then
     editor.flashNotification("Cancelled", "warn")
@@ -113,10 +113,11 @@ command.define {
     if not FlabelRef then return end
     -- editor.flashNotification(FlabelRef)
     editor.navigate(FlabelRef)
-    local pos = tonumber(FlabelRef:match("@(.*)$"))
-    if pos then
-        editor.moveCursor(pos, true)
-    end
+    -- local pos = tonumber(FlabelRef:match("@(.*)$"))
+    -- if pos then
+    --     editor.moveCursor(pos, true)
+    -- end
+    editor.invokeCommand("Navigate: Center Cursor")
     editor.copyToClipboard(Flabel)
   end
 }
@@ -129,10 +130,11 @@ command.define {
     if not BlabelRef then return end
     -- editor.flashNotification(BlabelRef)
     editor.navigate(BlabelRef)
-    local pos = tonumber(BlabelRef:match("@(.*)$"))
-    if pos then
-        editor.moveCursor(pos, true)
-    end
+    -- local pos = tonumber(BlabelRef:match("@(.*)$"))
+    -- if pos then
+    --     editor.moveCursor(pos, true)
+    -- end
+    editor.invokeCommand("Navigate: Center Cursor")
     editor.copyToClipboard(Flabel)
   end
 }
@@ -186,6 +188,8 @@ command.define {
     local alias = getSelectedText() or ""
     local Flabel = pickerBox_labelName('Enter: label (to be Referred)', js.window.navigator.clipboard.readText())
     if not Flabel then return end
+    Flabel = usrPrompt('Enter: label (to be Referred)', Flabel)
+    if not Flabel then return end
     local forthAnchor = "[[" .. Flabel .. "|^|" .. anchorSymbol .. "|" .. alias .. suffixBlabel .. "]]"
     local backRefs = '${backRefs("' .. Flabel .. '")}'
     local fullText = forthAnchor .. backRefs
@@ -195,6 +199,7 @@ command.define {
       editor.copyToClipboard(alias)
     end
     editor.insertAtPos(fullText, editor.getCursor(), true)
+    -- editor.copyToClipboard(Flabel)
     -- editor.insertAtCursor(alias, false) -- scrollIntoView?
     editor.invokeCommand("Widgets: Refresh All")
   end
@@ -261,7 +266,7 @@ command.define {
   key = "Ctrl-.",
   run = function()
     local alias = getSelectedText() or ""
-    local Flabel = pickerBox_labelName('Jump to: label', js.window.navigator.clipboard.readText())
+    local Flabel = pickerBox_labelName('Pick: label (to Compose)', js.window.navigator.clipboard.readText())
     if not Flabel then return end
     local thBlabelNum = #tableBack(Flabel) + 1
     local aspiringPage = Flabel .. anchorSymbol
@@ -283,7 +288,7 @@ command.define {
   run = function()
     local iniText = getSelectedText() or ""
     local alias = js.window.navigator.clipboard.readText()
-    local Flabel = pickerBox_labelName('Jump to: label', iniText)
+    local Flabel = pickerBox_labelName('Pick: label (to Compose)', iniText)
     if not Flabel then return end
     local thBlabelNum = #tableBack(Flabel) + 1
     local aspiringPage = Flabel .. anchorSymbol
@@ -309,7 +314,7 @@ command.define {
     if iniText and iniText ~= "" then
       Flabel = iniText
     else
-      Flabel = pickerBox_labelName('Jump to: label', '')
+      Flabel = pickerBox_labelName('Pick: label (to Build)', '')
     end
     if not Flabel then return end
     local thBlabelNum = #tableBack(Flabel) + 1
