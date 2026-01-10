@@ -2,7 +2,7 @@
 tags: meta/repository
 pageDecoration.prefix: "📚 "
 share.uri: "https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Repositories/xczphysics.md"
-share.hash: "1e450785"
+share.hash: 2e04606b
 share.mode: pull
 ---
 
@@ -186,6 +186,20 @@ uri: https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xc
 [Unwrap.md](https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/CONFIG/Nearest_Pattern/Unwrap.md) #github
 
 # 🔎 Picker
+
+## Global
+
+==Ctrl-Shift-f== 
+Add `Search: Text` to CMD
+
+```#meta/library/remote
+name: "Search/Text"
+website: https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/CONFIG/Search/Text.md
+uri: https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/CONFIG/Search/Text.md
+```
+[[Library/xczphysics/CONFIG/Search/Text#Global Search|Global Search]]
+[Text](https://enlarge-the-percentage.fly.dev/Library/xczphysics/CONFIG/Search/Text#Global%20Search) #enlarge-the-percentage #fly
+[Text.md](https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/CONFIG/Search/Text.md) #github
 
 ## Heading
 
