@@ -2,7 +2,7 @@
 tags: meta/repository
 pageDecoration.prefix: "📚 "
 share.uri: "https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Repositories/xczphysics.md"
-share.hash: 2e04606b
+share.hash: cee4aa8b
 share.mode: pull
 ---
 
@@ -508,9 +508,10 @@ uri: https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xc
 
 ## HHH
 
-==Highlight the entire `Tree of Headings`where your cursor belongs==
+==Highlight the entire `Tree of Headings`where your cursor belongs==, _addtitionally provide corresponding floating buttons to navigate through these headers_
 - Install `HierarchyHighlightHeadings.js` and its `css part`
 - No conflict to [[Repositories/xczphysics#Doom-Two]]
+- Share some `CSS` with [[#LinkFloater|]]
 
 ```#meta/library/remote
 name: "Theme/HHH"
@@ -520,6 +521,21 @@ uri: https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xc
 [[Library/xczphysics/STYLE/Theme/HHH#HierarchyHighlightHeadings - HHH Theme|HHH]]
 [HHH](https://enlarge-the-percentage.fly.dev/Library/xczphysics/STYLE/Theme/HHH#HierarchyHighlightHeadings%20-%20HHH%20Theme) #enlarge-the-percentage #fly
 [HHH.md](https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/STYLE/Theme/HHH.md) #github
+
+## LinkFloater
+
+==`provid` inward links to `and` outward links from `current page`==
+- Install `LinkFloater.js`
+- need `CSS` from [[#HHH|]]
+
+```#meta/library/remote
+name: "Theme/LinkFloater"
+website: https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/STYLE/Theme/LinkFloater.md
+uri: https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/STYLE/Theme/LinkFloater.md
+```
+[[Library/xczphysics/STYLE/Theme/LinkFloater#2. Lua Logic (Bridge)|LinkFloater]]
+[LinkFloater](https://enlarge-the-percentage.fly.dev/Library/xczphysics/STYLE/Theme/LinkFloater#2.%20Lua%20Logic%20(Bridge)) #enlarge-the-percentage #fly
+[LinkFloater.md](https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/STYLE/Theme/LinkFloater.md) #github
 
 # Other Custom Configs
 
