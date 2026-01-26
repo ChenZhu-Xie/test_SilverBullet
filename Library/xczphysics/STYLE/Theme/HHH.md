@@ -6,13 +6,17 @@ files:
 - HHH.js
 pageDecoration.prefix: "🎇 "
 share.uri: "https://github.com/ChenZhu-Xie/xczphysics_SilverBullet/blob/main/Library/xczphysics/STYLE/Theme/HHH.md"
-share.hash: 256571a7
+share.hash: 9261dfc2
 share.mode: pull
 ---
 
 # HierarchyHighlightHeadings - HHH Theme
 
 ## JS Part
+
+> **note** Note
+> JS file now should be automatically downloaded and loaded.
+> So, no need to carry out below 4 steps.
 
 ### Step 1. Reload your space to load the space-lua from this page: ${widgets.commandButton("System: Reload")}
 
@@ -28,17 +32,80 @@ share.mode: pull
    - 速度和大小上 应该会输于 [[PKM/Apps/SilverBullet|]] 的 编译后的 TS .plug.js
 
 > **danger** Danger
-> for test: ${widgets.commandButton("Delete: HHH.js")}
+> when remove this plug, better first: ${widgets.commandButton("Delete: HHH.js")}
 
 ```space-lua
 local jsCode = [[
 // Library/xczphysics/STYLE/Theme/HHH.js
-// HHH v11-FixAndFeatures
-// 1. Fix: Robust highlighting on hover/edit (added delays for DOM updates)
-// 2. Feature: Background highlight with transparency
-// 3. Feature: Gradient underline
+// HHH v13 - 修复缩进 + 删除小方格
 
-const STATE_KEY = "__xhHighlightState_v11";
+const STATE_KEY = "__xhHighlightState_v13";
+
+// ==========================================
+// 辅助函数
+// ==========================================
+
+/**
+ * 居中光标的辅助函数
+ * 尝试多种方式实现 "Navigate: Center Cursor" 效果
+ */
+async function centerCursor() {
+  // 给导航一点时间完成
+  await new Promise(resolve => setTimeout(resolve, 50));
+  
+  try {
+    // 方法1: 使用 silverbullet.syscall (如果在正确的上下文中)
+    if (globalThis.silverbullet && typeof globalThis.silverbullet.syscall === 'function') {
+      await globalThis.silverbullet.syscall("editor.invokeCommand", "Navigate: Center Cursor");
+      return true;
+    }
+  } catch (e) {
+    // console.warn("[LinkFloater] syscall method failed:", e);
+  }
+  
+  try {
+    // 方法2: 直接使用 editorView 滚动到光标位置
+    if (window.client && client.editorView) {
+      const view = client.editorView;
+      const cursorPos = view.state.selection.main.head;
+      
+      // 获取光标的屏幕坐标
+      const coords = view.coordsAtPos(cursorPos);
+      if (coords) {
+        const viewRect = view.dom.getBoundingClientRect();
+        const viewHeight = viewRect.height;
+        
+        // 计算目标滚动位置，使光标位于视图中心
+        const currentScrollTop = view.scrollDOM.scrollTop;
+        const cursorRelativeY = coords.top - viewRect.top + currentScrollTop;
+        const targetScrollTop = cursorRelativeY - viewHeight / 2;
+        
+        view.scrollDOM.scrollTo({ 
+          top: Math.max(0, targetScrollTop), 
+          behavior: 'instant' 
+        });
+      }
+      return true;
+    }
+  } catch (e) {
+    // console.warn("[LinkFloater] Direct scroll failed:", e);
+  }
+  
+  return false;
+}
+
+/**
+ * 封装的导航函数 - 导航后自动居中光标
+ * @param {Object} options - client.navigate 的参数
+ */
+function navigateAndCenter(options) {
+  if (!window.client) return;
+  
+  client.navigate(options);
+  
+  // 异步执行居中，不阻塞导航
+  setTimeout(() => centerCursor(), 50);
+}
 
 // ==========================================
 // 1. Model: 数据模型
@@ -59,7 +126,6 @@ const DataModel = {
 
   rebuildSync() {
     const text = this.getFullText();
-    // 即使文本没变，如果 headings 为空也需要重建（初始化情况）
     if (text === this.lastText && this.headings.length > 0) return;
 
     this.lastText = text;
@@ -67,9 +133,7 @@ const DataModel = {
     
     if (!text) return;
 
-    // 1. 预先扫描所有代码块的范围，用于后续排除
     const codeBlockRanges = [];
-    // 匹配 ``` ... ``` 包裹的内容 (非贪婪模式)
     const codeBlockRegex = /```[\s\S]*?```/gm;
     let blockMatch;
     while ((blockMatch = codeBlockRegex.exec(text)) !== null) {
@@ -79,19 +143,16 @@ const DataModel = {
       });
     }
 
-    // 2. 扫描标题
     const regex = /^(#{1,6})\s+([^\n]*)$/gm;
     let match;
 
     while ((match = regex.exec(text)) !== null) {
       const matchIndex = match.index;
       
-      // 3. 检查当前匹配到的 # 是否在代码块范围内
       const isInsideCodeBlock = codeBlockRanges.some(range => 
         matchIndex >= range.start && matchIndex < range.end
       );
 
-      // 如果在代码块内，则跳过，不将其视为标题
       if (isInsideCodeBlock) continue;
 
       this.headings.push({
@@ -185,15 +246,164 @@ const View = {
     if (!el) {
       el = document.createElement("div");
       el.id = id;
+      el.className = "sb-frozen-container";
       el.style.position = "fixed";
       el.style.zIndex = "9999";
       el.style.display = "none";
-      el.style.flexDirection = "column";
-      el.style.alignItems = "flex-start";
       el.style.pointerEvents = "auto";
       document.body.appendChild(el);
     }
     return el;
+  },
+
+  splitIntoColumns(items, itemHeight = 26) {
+    const maxHeight = window.innerHeight * 0.45;
+    const maxItemsPerCol = Math.max(3, Math.floor(maxHeight / itemHeight));
+    
+    const columns = [];
+    for (let i = 0; i < items.length; i += maxItemsPerCol) {
+      columns.push(items.slice(i, i + maxItemsPerCol));
+    }
+    return columns;
+  },
+
+  /**
+   * 生成树状结构前缀
+   * @param {number} level - 当前标题层级
+   * @param {number} baseLevel - 基础层级
+   * @param {boolean} isLast - 是否是该层级最后一个
+   * @param {Array} parentIsLast - 父级是否为最后一个的数组
+   */
+  generateTreePrefix(level, baseLevel, isLast, parentIsLast = []) {
+    if (level <= baseLevel) return "";
+    
+    let prefix = "";
+    const depth = level - baseLevel;
+    
+    // 使用不间断空格确保宽度一致
+    const SPACE = "\u00A0\u00A0"; // 两个不间断空格
+    
+    for (let i = 0; i < depth - 1; i++) {
+      if (parentIsLast[i]) {
+        prefix += "\u00A0" + SPACE; // 父级是最后一个，用空白
+      } else {
+        prefix += "│" + SPACE; // 父级不是最后一个，用竖线
+      }
+    }
+    
+    // 最后一个连接符
+    prefix += isLast ? "└─" : "├─";
+    
+    return prefix;
+  },
+
+  /**
+   * 创建可悬浮展开的标题项
+   */
+  createHeadingItem(h, baseLevel, isLast, parentIsLast, index, total) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "sb-frozen-item-wrapper";
+    wrapper.style.display = "flex";
+    wrapper.style.alignItems = "center";
+    wrapper.style.gap = "2px";
+    
+    // 树状前缀
+    const treePrefix = this.generateTreePrefix(h.level, baseLevel, isLast, parentIsLast);
+    if (treePrefix) {
+      const prefixSpan = document.createElement("span");
+      prefixSpan.className = "sb-frozen-tree-prefix";
+      prefixSpan.textContent = treePrefix;
+      prefixSpan.style.fontFamily = "monospace";
+      prefixSpan.style.fontSize = "10px";
+      prefixSpan.style.opacity = "0.5";
+      prefixSpan.style.whiteSpace = "pre"; // 保持空格
+      wrapper.appendChild(prefixSpan);
+    }
+    
+    // 标题按钮
+    const div = document.createElement("div");
+    div.className = `sb-frozen-item sb-frozen-l${h.level}`;
+    
+    const maxLen = 20;
+    const shortText = h.text.length > maxLen ? h.text.substring(0, maxLen) + "…" : h.text;
+    const fullText = h.text;
+    
+    div.textContent = shortText;
+    div.title = fullText;
+    div.dataset.fullText = fullText;
+    div.dataset.shortText = shortText;
+    
+    div.style.cursor = "pointer";
+    div.style.position = "relative";
+    
+    // 层级指示器（左下角小字）
+    const levelIndicator = document.createElement("span");
+    levelIndicator.className = "sb-frozen-level-indicator";
+    levelIndicator.textContent = `H${h.level}`;
+    div.appendChild(levelIndicator);
+    
+    // 悬浮展开
+    div.addEventListener("mouseenter", () => {
+      if (fullText !== shortText) {
+        // 保留层级指示器
+        div.childNodes[0].textContent = fullText;
+        div.classList.add("sb-frozen-expanded");
+      }
+    });
+    
+    div.addEventListener("mouseleave", () => {
+      div.childNodes[0].textContent = shortText;
+      div.classList.remove("sb-frozen-expanded");
+    });
+    
+    // 点击导航
+    div.onclick = (e) => {
+      e.stopPropagation();
+      if (window.client) {
+        const pagePath = client.currentPath();
+        navigateAndCenter({
+          path: pagePath,
+          details: { type: "header", header: h.text }
+        });
+      }
+    };
+    
+    wrapper.appendChild(div);
+    return wrapper;
+  },
+
+  /**
+   * 计算 parentIsLast 数组
+   */
+  computeParentIsLast(items, index, baseLevel) {
+    const currentLevel = items[index].level;
+    const result = [];
+    
+    for (let lvl = baseLevel + 1; lvl < currentLevel; lvl++) {
+      // 检查在这个层级，当前项之后是否还有同级或更高级的项
+      let isLastAtThisLevel = true;
+      for (let j = index + 1; j < items.length; j++) {
+        if (items[j].level <= lvl) {
+          isLastAtThisLevel = false;
+          break;
+        }
+      }
+      result.push(isLastAtThisLevel);
+    }
+    
+    return result;
+  },
+
+  /**
+   * 检查是否是同级中的最后一个
+   */
+  isLastSibling(items, index) {
+    const currentLevel = items[index].level;
+    for (let j = index + 1; j < items.length; j++) {
+      if (items[j].level === currentLevel) return false;
+      if (items[j].level < currentLevel) return true;
+    }
+    return true;
   },
 
   renderTopBar(targetIndex, container) {
@@ -210,39 +420,53 @@ const View = {
     }
 
     if (container) {
-        const rect = container.getBoundingClientRect();
-        el.style.left = (rect.left + 45) + "px";
-        el.style.top = (rect.top + 30) + "px";
+      const rect = container.getBoundingClientRect();
+      el.style.left = (rect.left + 45) + "px";
+      el.style.top = (rect.top + 30) + "px";
     }
 
     el.innerHTML = "";
     el.style.display = "flex";
-    
-    const label = document.createElement("div");
-    label.textContent = "Context:";
-    label.style.fontSize = "10px";
-    label.style.opacity = "0.5";
-    label.style.marginBottom = "2px";
-    label.style.pointerEvents = "none";
-    el.appendChild(label);
+    el.style.flexDirection = "row";
+    el.style.gap = "8px";
+    el.style.alignItems = "flex-start";
 
-    list.forEach(h => {
-      const div = document.createElement("div");
-      div.className = `sb-frozen-item sb-frozen-l${h.level}`;
-      div.textContent = h.text;
-      div.style.margin = "1px 0";
-      div.style.cursor = "pointer";
-      div.onclick = (e) => {
-        e.stopPropagation();
-        if (window.client) {
-            const pagePath = client.currentPath();
-            client.navigate({
-                path: pagePath,
-                details: { type: "header", header: h.text }
-            });
-        }
-      };
-      el.appendChild(div);
+    const columns = this.splitIntoColumns(list);
+    const baseLevel = 0; // ancestors 从 1 级开始
+
+    columns.forEach((columnItems, colIndex) => {
+      const col = document.createElement("div");
+      col.className = "sb-frozen-col";
+      col.style.display = "flex";
+      col.style.flexDirection = "column";
+      col.style.alignItems = "flex-start";
+      col.style.gap = "2px";
+
+      if (colIndex === 0) {
+        const label = document.createElement("div");
+        label.textContent = "Context:";
+        label.style.fontSize = "10px";
+        label.style.opacity = "0.5";
+        label.style.marginBottom = "2px";
+        label.style.pointerEvents = "none";
+        col.appendChild(label);
+      } else {
+        const spacer = document.createElement("div");
+        spacer.textContent = "·";
+        spacer.style.fontSize = "10px";
+        spacer.style.opacity = "0.3";
+        spacer.style.marginBottom = "2px";
+        col.appendChild(spacer);
+      }
+
+      columnItems.forEach((h, idx) => {
+        const globalIdx = colIndex * Math.ceil(list.length / columns.length) + idx;
+        const isLast = this.isLastSibling(list, globalIdx);
+        const parentIsLast = this.computeParentIsLast(list, globalIdx, baseLevel);
+        col.appendChild(this.createHeadingItem(h, baseLevel, isLast, parentIsLast, idx, columnItems.length));
+      });
+
+      el.appendChild(col);
     });
   },
 
@@ -260,49 +484,59 @@ const View = {
     }
 
     if (container) {
-        const rect = container.getBoundingClientRect();
-        el.style.left = (rect.left + 45) + "px";
-        el.style.bottom = "30px";
-        el.style.top = "auto";
+      const rect = container.getBoundingClientRect();
+      el.style.left = (rect.left + 45) + "px";
+      el.style.bottom = "30px";
+      el.style.top = "auto";
     }
 
     el.innerHTML = "";
     el.style.display = "flex";
+    el.style.flexDirection = "row";
+    el.style.gap = "8px";
+    el.style.alignItems = "flex-end";
 
-    const label = document.createElement("div");
-    label.textContent = "Sub-sections:";
-    label.style.fontSize = "10px";
-    label.style.opacity = "0.5";
-    label.style.marginBottom = "2px";
-    label.style.pointerEvents = "none";
-    el.appendChild(label);
+    const baseLevel = DataModel.headings[targetIndex]?.level || 1;
+    const columns = this.splitIntoColumns(list);
 
-    list.forEach(h => {
-      const div = document.createElement("div");
-      div.className = `sb-frozen-item sb-frozen-l${h.level}`;
-      div.textContent = h.text;
-      div.style.margin = "1px 0";
-      const indent = (h.level - DataModel.headings[targetIndex].level) * 10;
-      div.style.marginLeft = `${indent}px`;
-      div.style.cursor = "pointer";
-      div.onclick = (e) => {
-        e.stopPropagation();
-        if (window.client) {
-            const pagePath = client.currentPath();
-            client.navigate({
-                path: pagePath,
-                details: { type: "header", header: h.text }
-            });
-        }
-      };
-      el.appendChild(div);
+    columns.forEach((columnItems, colIndex) => {
+      const col = document.createElement("div");
+      col.className = "sb-frozen-col";
+      col.style.display = "flex";
+      col.style.flexDirection = "column";
+      col.style.alignItems = "flex-start";
+      col.style.gap = "2px";
+
+      if (colIndex === 0) {
+        const label = document.createElement("div");
+        label.textContent = "Sub-sections:";
+        label.style.fontSize = "10px";
+        label.style.opacity = "0.5";
+        label.style.marginBottom = "2px";
+        label.style.pointerEvents = "none";
+        col.appendChild(label);
+      } else {
+        const spacer = document.createElement("div");
+        spacer.textContent = "·";
+        spacer.style.fontSize = "10px";
+        spacer.style.opacity = "0.3";
+        spacer.style.marginBottom = "2px";
+        col.appendChild(spacer);
+      }
+
+      columnItems.forEach((h, idx) => {
+        const globalIdx = colIndex * Math.ceil(list.length / columns.length) + idx;
+        const isLast = this.isLastSibling(list, globalIdx);
+        const parentIsLast = this.computeParentIsLast(list, globalIdx, baseLevel);
+        col.appendChild(this.createHeadingItem(h, baseLevel, isLast, parentIsLast, idx, columnItems.length));
+      });
+
+      el.appendChild(col);
     });
   },
 
-  // DOM 高亮逻辑
   applyHighlights(container, activeIndices) {
     const cls = ["sb-active", "sb-active-anc", "sb-active-desc", "sb-active-current"];
-    // 先清除旧的高亮，防止状态残留
     container.querySelectorAll("." + cls.join(", .")).forEach(el => el.classList.remove(...cls));
 
     if (!activeIndices || activeIndices.size === 0) return;
@@ -310,33 +544,29 @@ const View = {
     if (!window.client || !client.editorView) return;
     const view = client.editorView;
 
-    // 扩大查找范围，确保能找到所有标题行
     const visibleHeadings = container.querySelectorAll(".sb-line-h1, .sb-line-h2, .sb-line-h3, .sb-line-h4, .sb-line-h5, .sb-line-h6");
     
     visibleHeadings.forEach(el => {
       try {
         const pos = view.posAtDOM(el);
-        // 使用 posAtDOM 有时会偏差，增加一定容错
         const idx = DataModel.findHeadingIndexByPos(pos + 1);
         
         if (idx !== -1 && activeIndices.has(idx)) {
-            // 再次确认位置是否匹配（防止误判）
-            const h = DataModel.headings[idx];
-            // 只要 DOM 元素位置在标题范围内即可
-            if (pos >= h.start - 50 && pos <= h.end + 50) {
-                 el.classList.add("sb-active");
-                 if (idx === window[STATE_KEY].currentIndex) {
-                    el.classList.add("sb-active-current");
-                 } else {
-                     const mainIdx = window[STATE_KEY].currentIndex;
-                     const currentLevel = DataModel.headings[mainIdx].level;
-                     if (idx < mainIdx && DataModel.headings[idx].level < currentLevel) {
-                         el.classList.add("sb-active-anc");
-                     } else {
-                         el.classList.add("sb-active-desc");
-                     }
-                 }
+          const h = DataModel.headings[idx];
+          if (pos >= h.start - 50 && pos <= h.end + 50) {
+            el.classList.add("sb-active");
+            if (idx === window[STATE_KEY].currentIndex) {
+              el.classList.add("sb-active-current");
+            } else {
+              const mainIdx = window[STATE_KEY].currentIndex;
+              const currentLevel = DataModel.headings[mainIdx].level;
+              if (idx < mainIdx && DataModel.headings[idx].level < currentLevel) {
+                el.classList.add("sb-active-anc");
+              } else {
+                el.classList.add("sb-active-desc");
+              }
             }
+          }
         }
       } catch (e) {}
     });
@@ -344,7 +574,7 @@ const View = {
 };
 
 // ==========================================
-// 3. Controller: 事件控制
+// 3. Controller
 // ==========================================
 
 export function enableHighlight(opts = {}) {
@@ -366,7 +596,6 @@ export function enableHighlight(opts = {}) {
     };
 
     function updateState(targetIndex) {
-      // 即使 index 没变，也要重新 applyHighlights，因为 DOM 可能重绘了（例如打字时）
       window[STATE_KEY].currentIndex = targetIndex;
 
       if (targetIndex === -1) {
@@ -382,52 +611,37 @@ export function enableHighlight(opts = {}) {
       View.renderBottomBar(targetIndex, container);
     }
 
-    // --- Event Handlers ---
-
     function onPointerOver(e) {
       if (!container.contains(e.target)) return;
-
       try {
-        // 优先使用 posAtCoords，这比 target.closest 更准确，尤其是对于复杂的 CodeMirror 结构
         const pos = client.editorView.posAtCoords({x: e.clientX, y: e.clientY});
         if (pos != null) {
           const idx = DataModel.findHeadingIndexByPos(pos);
-          // 只有当索引变化时才触发，避免高频闪烁，但要确保高亮存在
           if (idx !== window[STATE_KEY].currentIndex || !document.querySelector(".sb-active")) {
-             updateState(idx);
+            updateState(idx);
           }
         }
       } catch (err) { }
     }
 
-    // 编辑或点击时的处理
     function onCursorActivity(e) {
-      // 使用 setTimeout 是关键修复：
-      // 当用户打字（keyup）时，CodeMirror 需要几毫秒来更新 DOM（添加 .sb-line-hX 类）。
-      // 如果立即执行，querySelectorAll 找不到新生成的标题元素，导致高亮失败。
       if (window[STATE_KEY].updateTimeout) clearTimeout(window[STATE_KEY].updateTimeout);
-      
       window[STATE_KEY].updateTimeout = setTimeout(() => {
         try {
-            // 两种策略：如果有鼠标位置用鼠标，否则用光标
-            // 这里主要处理编辑，所以优先用光标位置
-            const state = client.editorView.state;
-            const pos = state.selection.main.head;
-            const idx = DataModel.findHeadingIndexByPos(pos);
-            updateState(idx);
+          const state = client.editorView.state;
+          const pos = state.selection.main.head;
+          const idx = DataModel.findHeadingIndexByPos(pos);
+          updateState(idx);
         } catch (e) {}
-      }, 50); // 50ms 延迟通常足够等待 DOM 更新
+      }, 50);
     }
 
     let isScrolling = false;
     function handleScroll() {
-      // 滚动时如果鼠标在悬停，不强制改变（防止冲突），除非需要跟随视口
-      // 但为了持续高亮，我们允许滚动更新顶部索引
       if (container.matches(":hover")) {
-          isScrolling = false;
-          return;
+        isScrolling = false;
+        return;
       }
-      
       const viewportTopPos = client.editorView.viewport.from;
       const idx = DataModel.findHeadingIndexByPos(viewportTopPos + 50);
       updateState(idx);
@@ -441,23 +655,20 @@ export function enableHighlight(opts = {}) {
       }
     }
     
-    // 监听 DOM 变化，防止 CodeMirror 重绘导致高亮丢失
     const mo = new MutationObserver((mutations) => {
-        // 只有当实际上有高亮需求时才重绘
-        if (window[STATE_KEY].currentIndex !== -1) {
-           // 检查是否丢失了高亮类
-           const activeEl = container.querySelector(".sb-active");
-           if (!activeEl) {
-               const familyIndices = DataModel.getFamilyIndices(window[STATE_KEY].currentIndex);
-               View.applyHighlights(container, familyIndices);
-           }
+      if (window[STATE_KEY].currentIndex !== -1) {
+        const activeEl = container.querySelector(".sb-active");
+        if (!activeEl) {
+          const familyIndices = DataModel.getFamilyIndices(window[STATE_KEY].currentIndex);
+          View.applyHighlights(container, familyIndices);
         }
+      }
     });
     mo.observe(container, { childList: true, subtree: true, attributes: false });
 
     container.addEventListener("pointerover", onPointerOver); 
     container.addEventListener("click", onCursorActivity);
-    container.addEventListener("keyup", onCursorActivity); // 确保键盘编辑时触发
+    container.addEventListener("keyup", onCursorActivity);
     window.addEventListener("scroll", onScroll, { passive: true });
 
     window[STATE_KEY].cleanup = () => {
@@ -476,7 +687,7 @@ export function enableHighlight(opts = {}) {
       DataModel.headings = [];
     };
 
-    console.log("[HHH] v11-FixAndFeatures Enabled");
+    console.log("[HHH] v13 Enabled");
   };
 
   bind();
@@ -511,7 +722,7 @@ command.define {
 ```
 
 
-```space-lua
+```lua
 command.define {
   name = "Enable: HierarchyHighlightHeadings",
   run = function()
@@ -521,7 +732,6 @@ command.define {
 
 command.define {
   name = "Disable HierarchyHighlightHeadings",
-  hide = true,
   run = function()
     js.import("/.fs/Library/xczphysics/STYLE/Theme/HHH.js").disableHighlight()
   end
@@ -531,100 +741,28 @@ command.define {
 1. borrowed `event.listen` from [[CONFIG/Edit/Read_Only_Toggle]]
 
 ```space-lua
-event.listen {
-  name = 'system:ready',
-  run = function(e)
-    js.import("/.fs/Library/xczphysics/STYLE/Theme/HHH.js").enableHighlight()
-  end
-}
+-- event.listen {
+--   name = 'system:ready',
+--   run = function(e)
+--     js.import("/.fs/Library/xczphysics/STYLE/Theme/HHH.js").enableHighlight()
+--   end
+-- }
+
+js.import("/.fs/Library/xczphysics/STYLE/Theme/HHH.js").enableHighlight()
 ```
 
 ## CSS part
 
 ### split
 
-
 ```space-style
 /* =========================================
-   1. 容器样式 (Navigation Bars)
+   统一主题样式 - HHH + LinkFloater v4
    ========================================= */
-#sb-frozen-container-top,
-#sb-frozen-container-bottom {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  align-items: flex-start;
-  pointer-events: none;
-}
 
 /* =========================================
-   2. 导航胶囊样式 (Pills)
+   1. 共享变量
    ========================================= */
-.sb-frozen-item {
-  display: inline-block;
-  width: auto;
-  max-width: 40vw;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  pointer-events: auto;
-  cursor: pointer;
-
-  margin: 0 !important;
-  padding: 0.2em 0.6em;
-  border-radius: 4px;
-  box-sizing: border-box;
-
-  opacity: 0.8 !important; 
-  background-color: var(--bg-color, #ffffff);
-  
-  border: 1px solid transparent;
-  border-bottom-color: rgba(0, 0, 0, 0.05);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  
-  font-family: inherit;
-  transition: all 0.15s ease-out;
-}
-
-.sb-frozen-item:hover {
-  opacity: 1 !important; 
-  z-index: 1001;
-  filter: brightness(0.95) contrast(0.95);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  border-color: currentColor; 
-}
-
-@media (prefers-color-scheme: dark) {
-  .sb-frozen-item {
-    background-color: var(--bg-color-dark, #252629);
-    border-bottom-color: rgba(255,255,255,0.06);
-  }
-  .sb-frozen-item:hover {
-    background-color: #333;
-    filter: brightness(1.2);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-  }
-}
-
-/* =========================================
-   3. 颜色定义 (Colors)
-   ========================================= */
-html[data-theme="dark"] .sb-frozen-l1 { color: var(--h1-color-dark); }
-html[data-theme="dark"] .sb-frozen-l2 { color: var(--h2-color-dark); }
-html[data-theme="dark"] .sb-frozen-l3 { color: var(--h3-color-dark); }
-html[data-theme="dark"] .sb-frozen-l4 { color: var(--h4-color-dark); }
-html[data-theme="dark"] .sb-frozen-l5 { color: var(--h5-color-dark); }
-html[data-theme="dark"] .sb-frozen-l6 { color: var(--h6-color-dark); }
-
-html[data-theme="light"] .sb-frozen-l1 { color: var(--h1-color-light); }
-html[data-theme="light"] .sb-frozen-l2 { color: var(--h2-color-light); }
-html[data-theme="light"] .sb-frozen-l3 { color: var(--h3-color-light); }
-html[data-theme="light"] .sb-frozen-l4 { color: var(--h4-color-light); }
-html[data-theme="light"] .sb-frozen-l5 { color: var(--h5-color-light); }
-html[data-theme="light"] .sb-frozen-l6 { color: var(--h6-color-light); }
-
 :root {
   /* Dark theme colors */
   --h1-color-dark: #e6c8ff;
@@ -643,61 +781,262 @@ html[data-theme="light"] .sb-frozen-l6 { color: var(--h6-color-light); }
   --h6-color-light: #993399;
 
   --title-opacity: 0.5;
+  
+  /* LinkFloater colors */
+  --link-local-color: #4caf50;
+  --link-remote-color: #2196f3;
+  --link-backlink-color: #ff9800;
 }
 
 /* =========================================
-   4. 编辑器内标题样式 (Editor Headings)
+   2. 共享基础样式
+   ========================================= */
+.sb-frozen-item,
+.sb-floater-btn {
+  display: inline-block;
+  width: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  pointer-events: auto;
+  cursor: pointer;
+
+  margin: 0;
+  padding: 0.2em 0.6em;
+  border-radius: 4px;
+  box-sizing: border-box;
+
+  opacity: 0.8;
+  background-color: var(--bg-color, #ffffff);
+  
+  /* 完整边框（透明） */
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  
+  font-family: inherit;
+  transition: all 0.15s ease-out;
+}
+
+/* 悬浮效果 - 包含完整边框（顶边和底边） */
+.sb-frozen-item:hover,
+.sb-frozen-item.sb-frozen-expanded,
+.sb-floater-btn:hover,
+.sb-floater-btn.sb-floater-expanded {
+  opacity: 1;
+  z-index: 1001;
+  max-width: none;
+  filter: brightness(0.95) contrast(0.95);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  /* 完整边框高亮 */
+  border: 1px solid currentColor;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .sb-frozen-item,
+  .sb-floater-btn {
+    background-color: var(--bg-color-dark, #252629);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .sb-frozen-item:hover,
+  .sb-floater-btn:hover {
+    background-color: #333;
+    filter: brightness(1.2);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    border: 1px solid currentColor;
+  }
+}
+
+html[data-theme="dark"] .sb-frozen-item,
+html[data-theme="dark"] .sb-floater-btn {
+  background-color: var(--bg-color-dark, #252629);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+}
+
+html[data-theme="dark"] .sb-frozen-item:hover,
+html[data-theme="dark"] .sb-floater-btn:hover {
+  background-color: #333;
+  filter: brightness(1.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  border: 1px solid currentColor;
+}
+
+/* =========================================
+   3. HHH 专用样式
    ========================================= */
 
-/* 基础样式：渐变下划线 (Feature 2) */
-.sb-line-h1, .sb-line-h2, .sb-line-h3,
-.sb-line-h4, .sb-line-h5, .sb-line-h6 {
-  position: relative; /* 为伪元素定位做准备 */
-  opacity: var(--title-opacity);
-  
-  /* 移除原本的实线边框 */
-  border-bottom: none !important;
-  
-  /* 新增：从左往右渐暗的下划线 */
-  /* 使用 currentColor 自动匹配标题颜色 */
-  background-image: linear-gradient(90deg, currentColor, transparent);
-  background-size: 100% 2px; /* 宽度100%，高度2px */
-  background-position: 0 100%; /* 位于底部 */
-  background-repeat: no-repeat;
-  
+#sb-frozen-container-top,
+#sb-frozen-container-bottom {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.sb-frozen-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  pointer-events: auto;
+}
+
+.sb-frozen-header {
+  font-size: 10px;
+  opacity: 0.5;
+  margin-bottom: 2px;
+  pointer-events: none;
+}
+
+/* 标题项容器（包含树状连接、按钮、层级标识） */
+.sb-frozen-item-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+/* HHH 专用：宽度限制 */
+.sb-frozen-item {
+  max-width: 40vw;
+}
+
+.sb-frozen-item:hover {
+  transform: translateY(-1px);
+}
+
+/* 树状连接线 */
+.sb-frozen-tree {
+  font-family: monospace;
+  font-size: 11px;
+  opacity: 0.4;
+  color: currentColor;
+  white-space: pre;
+  line-height: 1.2;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sb-frozen-item-wrapper:hover .sb-frozen-tree {
+  opacity: 0.8;
+}
+
+/* 层级标识 (H1-H6) */
+.sb-frozen-level {
+  font-size: 9px;
+  font-weight: bold;
+  opacity: 0.4;
+  padding: 1px 3px;
+  border-radius: 2px;
+  background-color: currentColor;
+  color: var(--bg-color, #fff);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  margin-left: -2px;
+  align-self: flex-end;
+}
+
+/* 层级标识悬浮高亮 */
+.sb-frozen-item-wrapper:hover .sb-frozen-level {
+  opacity: 0.7;
+}
+
+/* HHH 层级指示器 */
+.sb-frozen-level-indicator {
+  position: absolute;
+  left: 2px;
+  bottom: 0px;
+  font-size: 8px;
+  opacity: 0.4;
+  font-family: monospace;
+  pointer-events: none;
   transition: opacity 0.15s;
 }
 
-/* 字体大小与颜色映射 (保持不变) */
-html[data-theme="dark"] {
-  .sb-line-h1 { font-size:1.8em !important; color:var(--h1-color-dark)!important; }
-  .sb-line-h2 { font-size:1.6em !important; color:var(--h2-color-dark)!important; }
-  .sb-line-h3 { font-size:1.4em !important; color:var(--h3-color-dark)!important; }
-  .sb-line-h4 { font-size:1.2em !important; color:var(--h4-color-dark)!important; }
-  .sb-line-h5 { font-size:1em !important;  color:var(--h5-color-dark)!important; }
-  .sb-line-h6 { font-size:1em !important;  color:var(--h6-color-dark)!important; }
+.sb-frozen-item:hover .sb-frozen-level-indicator,
+.sb-frozen-item.sb-frozen-expanded .sb-frozen-level-indicator {
+  opacity: 0.8;
 }
 
-html[data-theme="light"] {
-  .sb-line-h1 { font-size:1.8em !important; color:var(--h1-color-light)!important; }
-  .sb-line-h2 { font-size:1.6em !important; color:var(--h2-color-light)!important; }
-  .sb-line-h3 { font-size:1.4em !important; color:var(--h3-color-light)!important; }
-  .sb-line-h4 { font-size:1.2em !important; color:var(--h4-color-light)!important; }
-  .sb-line-h5 { font-size:1em !important;  color:var(--h5-color-light)!important; }
-  .sb-line-h6 { font-size:1em !important;  color:var(--h6-color-light)!important; }
+/* 树状结构前缀 */
+.sb-frozen-tree-prefix {
+  color: var(--secondary-text-color, #888);
+  user-select: none;
 }
 
-/* =========================================
-   5. 高亮状态 (Active State)
-   ========================================= */
-
-/* 激活时增加不透明度 */
-.sb-active {
-  opacity: 1 !important;
+.sb-frozen-item-wrapper:hover .sb-frozen-tree-prefix {
+  opacity: 0.8;
 }
 
-/* 新增：高亮时的背景色块 (Feature 1) */
-/* 使用 ::before 伪元素来实现背景色，并应用透明度 */
+/* 层级标识颜色反转 */
+html[data-theme="dark"] .sb-frozen-level {
+  color: #1a1a1a;
+}
+
+html[data-theme="light"] .sb-frozen-level {
+  color: #fff;
+}
+
+/* 标题颜色 */
+html[data-theme="dark"] .sb-frozen-l1,
+html[data-theme="dark"] .sb-frozen-item-wrapper.sb-frozen-l1 { color: var(--h1-color-dark); }
+html[data-theme="dark"] .sb-frozen-l2,
+html[data-theme="dark"] .sb-frozen-item-wrapper.sb-frozen-l2 { color: var(--h2-color-dark); }
+html[data-theme="dark"] .sb-frozen-l3,
+html[data-theme="dark"] .sb-frozen-item-wrapper.sb-frozen-l3 { color: var(--h3-color-dark); }
+html[data-theme="dark"] .sb-frozen-l4,
+html[data-theme="dark"] .sb-frozen-item-wrapper.sb-frozen-l4 { color: var(--h4-color-dark); }
+html[data-theme="dark"] .sb-frozen-l5,
+html[data-theme="dark"] .sb-frozen-item-wrapper.sb-frozen-l5 { color: var(--h5-color-dark); }
+html[data-theme="dark"] .sb-frozen-l6,
+html[data-theme="dark"] .sb-frozen-item-wrapper.sb-frozen-l6 { color: var(--h6-color-dark); }
+
+html[data-theme="light"] .sb-frozen-l1,
+html[data-theme="light"] .sb-frozen-item-wrapper.sb-frozen-l1 { color: var(--h1-color-light); }
+html[data-theme="light"] .sb-frozen-l2,
+html[data-theme="light"] .sb-frozen-item-wrapper.sb-frozen-l2 { color: var(--h2-color-light); }
+html[data-theme="light"] .sb-frozen-l3,
+html[data-theme="light"] .sb-frozen-item-wrapper.sb-frozen-l3 { color: var(--h3-color-light); }
+html[data-theme="light"] .sb-frozen-l4,
+html[data-theme="light"] .sb-frozen-item-wrapper.sb-frozen-l4 { color: var(--h4-color-light); }
+html[data-theme="light"] .sb-frozen-l5,
+html[data-theme="light"] .sb-frozen-item-wrapper.sb-frozen-l5 { color: var(--h5-color-light); }
+html[data-theme="light"] .sb-frozen-l6,
+html[data-theme="light"] .sb-frozen-item-wrapper.sb-frozen-l6 { color: var(--h6-color-light); }
+
+/* 编辑器内标题样式 */
+.sb-line-h1, .sb-line-h2, .sb-line-h3,
+.sb-line-h4, .sb-line-h5, .sb-line-h6 {
+  position: relative;
+  opacity: var(--title-opacity);
+  border-bottom: none !important;
+  background-image: linear-gradient(90deg, currentColor, transparent);
+  background-size: 100% 2px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: opacity 0.15s;
+}
+
+html[data-theme="dark"] .sb-line-h1 { font-size:1.8em !important; color:var(--h1-color-dark)!important; }
+html[data-theme="dark"] .sb-line-h2 { font-size:1.6em !important; color:var(--h2-color-dark)!important; }
+html[data-theme="dark"] .sb-line-h3 { font-size:1.4em !important; color:var(--h3-color-dark)!important; }
+html[data-theme="dark"] .sb-line-h4 { font-size:1.2em !important; color:var(--h4-color-dark)!important; }
+html[data-theme="dark"] .sb-line-h5 { font-size:1em !important;  color:var(--h5-color-dark)!important; }
+html[data-theme="dark"] .sb-line-h6 { font-size:1em !important;  color:var(--h6-color-dark)!important; }
+
+html[data-theme="light"] .sb-line-h1 { font-size:1.8em !important; color:var(--h1-color-light)!important; }
+html[data-theme="light"] .sb-line-h2 { font-size:1.6em !important; color:var(--h2-color-light)!important; }
+html[data-theme="light"] .sb-line-h3 { font-size:1.4em !important; color:var(--h3-color-light)!important; }
+html[data-theme="light"] .sb-line-h4 { font-size:1.2em !important; color:var(--h4-color-light)!important; }
+html[data-theme="light"] .sb-line-h5 { font-size:1em !important;  color:var(--h5-color-light)!important; }
+html[data-theme="light"] .sb-line-h6 { font-size:1em !important;  color:var(--h6-color-light)!important; }
+
+/* 高亮状态 */
+.sb-active { opacity: 1 !important; }
+
 .sb-active::before {
   content: "";
   position: absolute;
@@ -705,16 +1044,118 @@ html[data-theme="light"] {
   left: -4px; 
   right: -4px; 
   bottom: 0;
-  
-  /* 关键：使用标题自身的颜色作为背景色 */
   background-color: currentColor;
-  
-  /* 设置透明度，使其不完全遮挡 */
   opacity: 0.15; 
-  
-  /* 放置在文字下方 */
   z-index: -1;
   pointer-events: none;
   border-radius: 4px;
+}
+
+/* =========================================
+   4. LinkFloater 专用样式
+   ========================================= */
+
+.sb-floater-container {
+  position: fixed;
+  right: 20px;
+  z-index: 1000;
+  pointer-events: none;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.sb-floater-wrapper {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.sb-floater-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  pointer-events: auto;
+}
+
+.sb-floater-header {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--secondary-text-color, #888);
+  opacity: 0.6;
+  margin-bottom: 2px;
+  margin-right: 2px;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+/* LinkFloater 专用：宽度限制 */
+.sb-floater-btn {
+  max-width: 120px;
+}
+
+.sb-floater-btn:hover {
+  transform: translateX(-2px);
+}
+
+/* 链接类型颜色 + 左侧条 */
+.sb-floater-local {
+  border-left: 3px solid var(--link-local-color);
+  color: var(--link-local-color);
+}
+
+.sb-floater-remote {
+  border-left: 3px solid var(--link-remote-color);
+  color: var(--link-remote-color);
+  font-weight: bold;
+}
+
+.sb-floater-backlink {
+  border-right: 3px solid var(--link-backlink-color);
+  border-left-width: 1px;
+  color: var(--link-backlink-color);
+}
+
+/* 悬浮时保持类型边框 + 完整边框 */
+.sb-floater-local:hover {
+  border: 1px solid var(--link-local-color);
+  border-left: 3px solid var(--link-local-color);
+}
+
+.sb-floater-remote:hover {
+  border: 1px solid var(--link-remote-color);
+  border-left: 3px solid var(--link-remote-color);
+}
+
+.sb-floater-backlink:hover {
+  border: 1px solid var(--link-backlink-color);
+  border-right: 3px solid var(--link-backlink-color);
+}
+
+html[data-theme="dark"] .sb-floater-local { 
+  color: #81c784; 
+  border-left-color: #81c784;
+}
+html[data-theme="dark"] .sb-floater-remote { 
+  color: #64b5f6; 
+  border-left-color: #64b5f6;
+}
+html[data-theme="dark"] .sb-floater-backlink { 
+  color: #ffb74d; 
+  border-right-color: #ffb74d;
+}
+
+html[data-theme="dark"] .sb-floater-local:hover {
+  border-color: #81c784;
+  border-left: 3px solid #81c784;
+}
+html[data-theme="dark"] .sb-floater-remote:hover {
+  border-color: #64b5f6;
+  border-left: 3px solid #64b5f6;
+}
+html[data-theme="dark"] .sb-floater-backlink:hover {
+  border-color: #ffb74d;
+  border-right: 3px solid #ffb74d;
 }
 ```
